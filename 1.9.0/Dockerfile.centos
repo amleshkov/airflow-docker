@@ -1,0 +1,15 @@
+FROM centos:7
+WORKDIR /
+RUN yum update -y
+RUN yum install -y wget gcc gcc-c++ cyrus-sasl-devel mariadb-devel python3-pip python3-devel mariadb
+RUN pip3 install --upgrade pip 
+RUN pip install apache-airflow[mysql,devel_hadoop,hdfs,hive,jdbc]==1.9.0 werkzeug==0.16.1 cryptography snakebite-py3
+RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.2/dumb-init_1.2.2_amd64
+RUN chmod +x /usr/local/bin/dumb-init
+COPY entrypoint /entrypoint
+RUN chmod +x /entrypoint
+RUN mkdir -p /opt/airflow
+ENV AIRFLOW_HOME=/opt/airflow
+ENV C_FORCE_ROOT=1
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/dumb-init", "--", "/entrypoint"]

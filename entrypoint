@@ -1,0 +1,13 @@
+#!/bin/bash
+until echo "exit" | mysql -u$DB_USER -p$DB_PASSWORD -h $DB_HOST airflow; do
+  echo "---===### Database is unavailable - sleeping ###===---"
+  sleep 1
+done
+echo "---===### Database is alive - initializing ###===---"
+airflow initdb
+echo "---===### Starting Airflow Scheduler ###===---"
+airflow scheduler &
+echo "---===### Starting Airflow Worker ###===---"
+airflow worker &
+echo "---===### Starting Airflow Webserver ###===---"
+airflow webserver
