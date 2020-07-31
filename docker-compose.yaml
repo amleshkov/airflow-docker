@@ -7,6 +7,7 @@ services:
     ports:
     - "8080:8080"
     volumes:
+    - /tmp/airflow:/opt/airflow
     - ./airflow.cfg:/opt/airflow/airflow.cfg
     environment:
       - DB_USER=airflow
@@ -16,10 +17,28 @@ services:
     - mysql
     networks:
       - default
+  airflow_scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.centos
+    restart: always
+    volumes:
+    - /tmp/airflow:/opt/airflow
+    - ./airflow.cfg:/opt/airflow/airflow.cfg
+    environment:
+      - DB_USER=airflow
+      - DB_PASSWORD=q1
+      - DB_HOST=mysql
+    command: scheduler
+    depends_on:
+    - mysql
+    networks:
+      - default
   mysql:
     image: mariadb:10
     restart: always
     command: --default-authentication-plugin=mysql_native_password --explicit-defaults-for-timestamp=TRUE
+    restart: always
     environment:
       - MYSQL_ROOT_PASSWORD=q1
       - MYSQL_DATABASE=airflow
@@ -31,5 +50,34 @@ services:
           - mysql
     cap_add:
       - SYS_NICE
+  dask:
+    build:
+      context: .
+      dockerfile: Dockerfile.centos
+    ports:
+    - "8786:8786"
+    - "8787:8787"
+    environment:
+      - DASK_HOST=dask
+      - DASK_PORT=8786
+    command: dask_scheduler
+    restart: always
+    depends_on:
+    - airflow
+    networks:
+      - default
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.centos
+    environment:
+      - DASK_HOST=dask
+      - DASK_PORT=8786
+    command: dask_worker
+    restart: always
+    depends_on:
+    - airflow
+    networks:
+      - default
 networks:
   default:

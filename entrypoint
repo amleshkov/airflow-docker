@@ -1,13 +1,27 @@
 #!/bin/bash
+COMMAND=$1
+if [[ $COMMAND == 'dask_scheduler' ]]; then
+    echo "---===### Starting Dask Scheduler ###===---"
+    exec dask-scheduler $DASk_HOST --port $DASK_PORT
+elif [[ $COMMAND == 'dask_worker' ]]; then
+    echo "---===### Starting Dask Worker ###===---"
+    exec dask-worker $DASK_HOST:$DASK_PORT
+elif [[ $COMMAND == 'scheduler' ]]; then
+    sleep 10
+    while [[ -f /opt/airflow/initdb.lock ]]; do
+        sleep 2
+        echo "---===### Database is still inizializng - sleeping ###===---"    
+    done
+    echo "---===### Starting Airflow Scheduler ###===---"
+    exec airflow scheduler
+fi
 until echo "exit" | mysql -u$DB_USER -p$DB_PASSWORD -h $DB_HOST airflow; do
+  touch /opt/airflow/initdb.lock
   echo "---===### Database is unavailable - sleeping ###===---"
-  sleep 1
+  sleep 2
 done
 echo "---===### Database is alive - initializing ###===---"
 airflow initdb
-echo "---===### Starting Airflow Scheduler ###===---"
-airflow scheduler &
-echo "---===### Starting Airflow Worker ###===---"
-airflow worker &
+rm -f /opt/airflow/initdb.lock
 echo "---===### Starting Airflow Webserver ###===---"
 airflow webserver
