@@ -1,44 +1,104 @@
 version: '2.0'
 services:
+  initdb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+    - mysql
+    - redis
+    networks:
+      - default
+    command: initdb
+    environment:
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://airflow:q1@mysql/airflow
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__API__AUTH_BACKEND=airflow.api.auth.backend.default
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://airflow:q1@mysql:3306/airflow
+    volumes:
+      - /tmp/airflow:/opt/airflow
   airflow:
     build:
       context: .
-      dockerfile: Dockerfile.centos
+      dockerfile: Dockerfile
+    depends_on:
+    - initdb
     ports:
     - "8080:8080"
-    volumes:
-    - /tmp/airflow:/opt/airflow
-    - ./airflow.cfg:/opt/airflow/airflow.cfg
-    environment:
-      - DB_USER=airflow
-      - DB_PASSWORD=q1
-      - DB_HOST=mysql
     depends_on:
     - mysql
     networks:
       - default
-  airflow_scheduler:
+    command: webserver
+    environment:
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://airflow:q1@mysql/airflow
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__API__AUTH_BACKEND=airflow.api.auth.backend.default
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://airflow:q1@mysql:3306/airflow
+    volumes:
+      - /tmp/airflow:/opt/airflow
+  scheduler:
     build:
       context: .
-      dockerfile: Dockerfile.centos
-    restart: always
-    volumes:
-    - /tmp/airflow:/opt/airflow
-    - ./airflow.cfg:/opt/airflow/airflow.cfg
-    environment:
-      - DB_USER=airflow
-      - DB_PASSWORD=q1
-      - DB_HOST=mysql
-    command: scheduler
+      dockerfile: Dockerfile
     depends_on:
     - mysql
+    - airflow
     networks:
       - default
+    command: scheduler
+    environment:
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://airflow:q1@mysql/airflow
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__API__AUTH_BACKEND=airflow.api.auth.backend.default
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://airflow:q1@mysql:3306/airflow
+    volumes:
+      - /tmp/airflow:/opt/airflow
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+    - airflow
+    networks:
+      - default
+    command: worker
+    environment:
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://airflow:q1@mysql/airflow
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__API__AUTH_BACKEND=airflow.api.auth.backend.default
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://airflow:q1@mysql:3306/airflow
+    volumes:
+      - /tmp/airflow:/opt/airflow
+    ports:
+      - "8793:8793"
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+    - airflow
+    networks:
+      - default
+    command: scheduler
+    environment:
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://airflow:q1@mysql/airflow
+      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+      - AIRFLOW__API__AUTH_BACKEND=airflow.api.auth.backend.default
+      - AIRFLOW__CELERY__BROKER_URL=redis://redis:6379/0
+      - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://airflow:q1@mysql:3306/airflow
+    volumes:
+      - /tmp/airflow:/opt/airflow
+    ports:
+    - "5555:5555"
   mysql:
     image: mariadb:10
     restart: always
     command: --default-authentication-plugin=mysql_native_password --explicit-defaults-for-timestamp=TRUE
-    restart: always
     environment:
       - MYSQL_ROOT_PASSWORD=q1
       - MYSQL_DATABASE=airflow
@@ -50,34 +110,12 @@ services:
           - mysql
     cap_add:
       - SYS_NICE
-  dask:
-    build:
-      context: .
-      dockerfile: Dockerfile.centos
-    ports:
-    - "8786:8786"
-    - "8787:8787"
-    environment:
-      - DASK_HOST=dask
-      - DASK_PORT=8786
-    command: dask_scheduler
+  redis:
+    image: redis
     restart: always
-    depends_on:
-    - airflow
     networks:
-      - default
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.centos
-    environment:
-      - DASK_HOST=dask
-      - DASK_PORT=8786
-    command: dask_worker
-    restart: always
-    depends_on:
-    - airflow
-    networks:
-      - default
+      default:
+        aliases:
+          - redis
 networks:
   default:
