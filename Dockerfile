@@ -79,8 +79,6 @@ RUN mkdir -pv /usr/share/man/man1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements-python${PYTHON_MAJOR_MINOR_VERSION}.txt /requirements.txt
-
 ARG AIRFLOW_EXTRAS
 ENV AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS}
 ARG AIRFLOW_VERSION
