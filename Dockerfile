@@ -8,7 +8,8 @@ ARG AIRFLOW_HOME=/opt/airflow
 ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_GID="50000"
 
-ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
+ARG ADDITIONAL_DEPS="libmariadb-dev libmariadb-dev-compat mariadb-client \
+	gcc libsasl2-dev libkrb5-dev g++ dumb-init"
 
 ARG PYTHON_BASE_IMAGE="python:3.6-slim-buster"
 ARG PYTHON_MAJOR_MINOR_VERSION="3.6"
@@ -33,8 +34,7 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ARG ADDITIONAL_DEPS="libmariadb-dev libmariadb-dev-compat mariadb-client \
-	gcc libsasl2-dev libkrb5-dev g++ dumb-init"
+ARG ADDITIONAL_DEPS
 ENV ADDITIONAL_DEPS=${ADDITIONAL_DEPS}
 
 # Install basic and additional apt dependencies
